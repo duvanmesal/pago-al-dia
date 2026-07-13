@@ -1,0 +1,7 @@
+{
+  "name": "pago-al-dia",
+  "integrations": {
+    "capacitor": {}
+  },
+  "type": "angular-standalone"
+}
