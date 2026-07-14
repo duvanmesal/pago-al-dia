@@ -32,6 +32,14 @@
  * https://ionicframework.com/docs/theming/dark-mode
  */
 
+/* The visual design is a fixed light palette (see the Pago al Día prototype),
+   so the system dark palette stays disabled. */
 /* @import "@ionic/angular/css/palettes/dark.always.css"; */
 /* @import "@ionic/angular/css/palettes/dark.class.css"; */
-@import '@ionic/angular/css/palettes/dark.system.css';
+/* @import '@ionic/angular/css/palettes/dark.system.css'; */
+
+:root {
+  --ion-font-family: 'Manrope', system-ui, sans-serif;
+  --ion-background-color: #f5f8f6;
+  --ion-text-color: #17231e;
+}

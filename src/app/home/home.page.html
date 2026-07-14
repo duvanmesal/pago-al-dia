@@ -1,20 +1,288 @@
-<ion-header [translucent]="true">
-  <ion-toolbar>
-    <ion-title>
-      Blank
-    </ion-title>
-  </ion-toolbar>
-</ion-header>
-
 <ion-content [fullscreen]="true">
-  <ion-header collapse="condense">
-    <ion-toolbar>
-      <ion-title size="large">Blank</ion-title>
-    </ion-toolbar>
-  </ion-header>
+  @if (!authReady()) {
+    <main class="state-page"><ion-spinner name="crescent"></ion-spinner></main>
+  } @else if (!user()) {
 
-  <div id="container">
-    <strong>Ready to create an app?</strong>
-    <p>Start with Ionic <a target="_blank" rel="noopener noreferrer" href="https://ionicframework.com/docs/components">UI Components</a></p>
-  </div>
+    <!-- ===================== AUTH ===================== -->
+    <main class="auth-screen">
+      <div class="auth-brand">
+        <div class="auth-brand-icon">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 2v20M17 5.5c0-1.7-2.2-3-5-3s-5 1.3-5 3 2.2 2.6 5 3 5 1.3 5 3-2.2 3-5 3-5-1.3-5-3" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg>
+        </div>
+        <h1>Pago al Día</h1>
+        <p>Tus horas y tu pago, siempre claros</p>
+      </div>
+
+      <section class="auth-card">
+        <div class="tab-switch" role="tablist" aria-label="Iniciar sesión o crear cuenta">
+          <button type="button" role="tab" [attr.aria-selected]="!registering()" [class.active]="!registering()" (click)="setRegistering(false)">Iniciar sesión</button>
+          <button type="button" role="tab" [attr.aria-selected]="registering()" [class.active]="registering()" (click)="setRegistering(true)">Crear cuenta</button>
+        </div>
+
+        <form [formGroup]="authForm" (ngSubmit)="submitAuth()" novalidate>
+          <label class="field-label" for="auth-email">Correo electrónico</label>
+          <input id="auth-email" class="field" type="email" inputmode="email" autocomplete="email" formControlName="email" placeholder="tucorreo@ejemplo.com" />
+
+          <label class="field-label" for="auth-password">Contraseña</label>
+          <input id="auth-password" class="field" type="password" [autocomplete]="registering() ? 'new-password' : 'current-password'" formControlName="password" placeholder="Mínimo 6 caracteres" />
+
+          @if (registering()) {
+            <label class="field-label" for="auth-confirmation">Confirmar contraseña</label>
+            <input id="auth-confirmation" class="field" type="password" autocomplete="new-password" formControlName="confirmation" placeholder="Repite tu contraseña" />
+          }
+
+          @if (authError()) { <div class="error-box">{{ authError() }}</div> }
+
+          <button class="primary-button" type="submit" [disabled]="authLoading()">
+            @if (authLoading()) { <ion-spinner name="crescent"></ion-spinner> }
+            @else { {{ registering() ? 'Crear cuenta' : 'Iniciar sesión' }} }
+          </button>
+
+          <div class="divider"><span>O</span></div>
+
+          <button class="google-button" type="button" [disabled]="authLoading()" (click)="signInWithGoogle()">
+            <svg width="17" height="17" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.9 32.4 29.4 35.5 24 35.5c-6.9 0-12.5-5.6-12.5-12.5S17.1 10.5 24 10.5c3.2 0 6 1.2 8.2 3.1l5.7-5.7C34.6 4.9 29.6 3 24 3 12.4 3 3 12.4 3 24s9.4 21 21 21 21-9.4 21-21c0-1.2-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.9 19 13 24 13c3.2 0 6 1.2 8.2 3.1l5.7-5.7C34.6 6.9 29.6 5 24 5c-7.7 0-14.4 4.4-17.7 10.8z"/><path fill="#4CAF50" d="M24 43c5.4 0 10.3-2 14-5.4l-6.5-5.3C29.5 34 26.9 35 24 35c-5.4 0-9.9-3.6-11.5-8.6l-6.6 5C9.5 38.9 16.2 43 24 43z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-1 3-3.2 5.4-5.9 6.9l6.5 5.3C39.9 37.4 43 31.4 43 24c0-1.2-.1-2.4-.4-3.5z"/></svg>
+            Continuar con Google
+          </button>
+        </form>
+      </section>
+
+      <p class="auth-footnote">Válido para trabajadores en Polonia · PLN · Europe/Warsaw</p>
+    </main>
+
+  } @else if (settingsLoading()) {
+    <main class="state-page"><ion-spinner name="crescent"></ion-spinner><p>Cargando tu información…</p></main>
+  } @else if (!settings()) {
+
+    <!-- ===================== SETUP ===================== -->
+    <main class="setup-screen">
+      <div class="setup-icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 17V7m0 10a2 2 0 100 4 2 2 0 000-4zm0-10a2 2 0 110-4 2 2 0 010 4zm8 10a2 2 0 100 4 2 2 0 000-4zm0 0V7m0 0a2 2 0 110-4 2 2 0 010 4zm8 6v6m0-6a2 2 0 100-4 2 2 0 000 4zm0 6a2 2 0 100 4 2 2 0 000-4z" stroke="#176b54" stroke-width="1.7" stroke-linecap="round"/></svg>
+      </div>
+      <h1>Configura tus tarifas</h1>
+      <p class="setup-subtitle">Se usarán para estimar tu pago cada mes. Podrás cambiarlas después desde Ajustes.</p>
+
+      <section class="setup-card">
+        <form [formGroup]="settingsForm" (ngSubmit)="saveSettings()" novalidate>
+          <label class="field-label" for="setup-gross">Tarifa bruta por hora (PLN)</label>
+          <div class="field-suffix">
+            <input id="setup-gross" class="field" type="number" inputmode="decimal" min="0.01" step="0.01" formControlName="grossHourlyRate" placeholder="0,00" (input)="onGrossRateInput()" />
+            <span>zł</span>
+          </div>
+
+          <label class="field-label" for="setup-net">Tarifa neta por hora (PLN)</label>
+          <div class="field-suffix">
+            <input id="setup-net" class="field" type="number" inputmode="decimal" min="0.01" step="0.01" formControlName="netHourlyRate" placeholder="0,00" />
+            <span>zł</span>
+          </div>
+
+          <label class="checkbox-row">
+            <input type="checkbox" [checked]="sameRate()" (change)="toggleSameRate($event)" />
+            Solo conozco una tarifa (usar el mismo valor)
+          </label>
+
+          @if (settingsError() || dataError()) { <div class="error-box">{{ settingsError() || dataError() }}</div> }
+
+          <button class="primary-button" type="submit" [disabled]="settingsSaving()">
+            @if (settingsSaving()) { <ion-spinner name="crescent"></ion-spinner> } @else { Continuar }
+          </button>
+        </form>
+      </section>
+
+      <p class="setup-footnote">Moneda: PLN · Zona horaria: Europe/Warsaw</p>
+      <button class="ghost-link" type="button" (click)="logout()">Cerrar sesión</button>
+    </main>
+
+  } @else {
+
+    <!-- ===================== DASHBOARD ===================== -->
+    <main class="dashboard">
+      <header class="dash-header">
+        <div>
+          <h1>Panel mensual</h1>
+          <p>Pago al Día</p>
+        </div>
+        <div class="dash-actions">
+          <button type="button" aria-label="Ajustes" title="Ajustes" (click)="openSettings()"><ion-icon name="settings-outline"></ion-icon></button>
+          <button type="button" class="logout" aria-label="Cerrar sesión" title="Cerrar sesión" (click)="logout()"><ion-icon name="log-out-outline"></ion-icon></button>
+        </div>
+      </header>
+
+      <section class="month-pill">
+        <span>{{ monthTitle() }}</span>
+        <div>
+          <button type="button" aria-label="Mes anterior" (click)="changeMonth(-1)"><ion-icon name="chevron-back"></ion-icon></button>
+          <button type="button" aria-label="Mes siguiente" [disabled]="!canGoNext()" (click)="changeMonth(1)"><ion-icon name="chevron-forward"></ion-icon></button>
+        </div>
+      </section>
+
+      @if (entriesLoading()) {
+        <section class="loading-card"><ion-spinner name="crescent"></ion-spinner><span>Cargando jornadas…</span></section>
+      } @else {
+        <section class="pay-card">
+          <span class="pay-label">Pago neto estimado</span>
+          <strong class="pay-amount">{{ formatCurrency(summary().netAmount) }}</strong>
+          <div class="pay-chips">
+            <div><span>Pago bruto</span><strong>{{ formatCurrency(summary().grossAmount) }}</strong></div>
+            <div><span>Fecha de pago</span><strong>{{ paymentDateLabel() }}</strong></div>
+          </div>
+        </section>
+
+        <section class="stats-row">
+          <article><span>Horas trabajadas</span><strong>{{ formatHours(summary().workedMinutes) }}</strong></article>
+          <article><span>Días trabajados</span><strong>{{ summary().daysWorked }}</strong></article>
+        </section>
+
+        @if (dataError()) { <div class="error-box">{{ dataError() }}</div> }
+
+        <section class="calendar-card">
+          <div class="weekdays">
+            @for (label of weekdayLabels; track label) { <span>{{ label }}</span> }
+          </div>
+          <div class="calendar-grid">
+            @for (day of calendarDays(); track $index) {
+              @if (day) {
+                <button type="button" [class.worked]="entryForDay(day)" [class.today]="dateForDay(day) === today" [disabled]="dateForDay(day) > today" (click)="openEntry(dateForDay(day))">
+                  <span class="cal-day">{{ day }}</span>
+                  @if (entryForDay(day); as entry) { <span class="cal-hours">{{ formatHours(entry.workedMinutes) }}</span> }
+                </button>
+              } @else { <span class="empty-day"></span> }
+            }
+          </div>
+        </section>
+
+        <h2 class="detail-title">Detalle del mes</h2>
+
+        @if (entries().length) {
+          <div class="entry-list">
+            @for (entry of entries(); track entry.date) {
+              <button type="button" class="entry-row" (click)="openEntry(entry.date)">
+                <span class="entry-badge">{{ dayNumber(entry.date) }}</span>
+                <span class="entry-info">
+                  <span class="entry-day">{{ formatDayLabel(entry.date) }}</span>
+                  <span class="entry-meta">{{ formatHours(entry.workedMinutes) }} · {{ formatCurrency((entry.workedMinutes / 60) * entry.netHourlyRate) }}</span>
+                </span>
+                <ion-icon name="chevron-forward"></ion-icon>
+              </button>
+            }
+          </div>
+        } @else {
+          <div class="empty-state">
+            <div class="empty-icon"><ion-icon name="calendar-outline"></ion-icon></div>
+            <p>{{ isCurrentMonth() ? 'Aún no registras jornadas este mes.' : 'No se registraron jornadas este mes.' }}</p>
+            @if (isCurrentMonth()) {
+              <button class="primary-button small" type="button" (click)="openEntry()">Registrar primera jornada</button>
+            }
+          </div>
+        }
+      }
+    </main>
+
+    <button class="fab" slot="fixed" type="button" aria-label="Registrar jornada de hoy" (click)="openEntry()">
+      <ion-icon name="add"></ion-icon>
+    </button>
+  }
 </ion-content>
+
+<!-- ===================== ENTRY SHEET ===================== -->
+<ion-modal class="sheet-modal" [isOpen]="entryModalOpen()" [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" (didDismiss)="closeEntry()">
+  <ng-template>
+    <div class="sheet-body">
+      <div class="sheet-handle"></div>
+      <div class="sheet-header">
+        <h2 class="capitalized">{{ entryDateLabel() }}</h2>
+        <button type="button" class="sheet-close" aria-label="Cerrar" (click)="closeEntry()"><ion-icon name="close-outline"></ion-icon></button>
+      </div>
+      <p class="sheet-note">La fecha no se puede modificar. Elimina y crea de nuevo si necesitas otra.</p>
+
+      <form [formGroup]="entryForm" (ngSubmit)="saveEntry()" novalidate>
+        <div class="tab-switch">
+          <button type="button" [class.active]="entryForm.controls.mode.value === 'manual'" (click)="setEntryMode('manual')">Total manual</button>
+          <button type="button" [class.active]="entryForm.controls.mode.value === 'schedule'" (click)="setEntryMode('schedule')">Entrada y salida</button>
+        </div>
+
+        @if (entryForm.controls.mode.value === 'manual') {
+          <div class="field-pair">
+            <div>
+              <label class="field-label" for="entry-hours">Horas</label>
+              <input id="entry-hours" class="field" type="number" inputmode="numeric" min="0" formControlName="manualHours" placeholder="0" />
+            </div>
+            <div>
+              <label class="field-label" for="entry-minutes">Minutos</label>
+              <input id="entry-minutes" class="field" type="number" inputmode="numeric" min="0" max="59" formControlName="manualMinutes" placeholder="0" />
+            </div>
+          </div>
+        } @else {
+          <div class="field-pair">
+            <div>
+              <label class="field-label" for="entry-start">Entrada</label>
+              <input id="entry-start" class="field" type="time" formControlName="startTime" />
+            </div>
+            <div>
+              <label class="field-label" for="entry-end">Salida</label>
+              <input id="entry-end" class="field" type="time" formControlName="endTime" />
+            </div>
+          </div>
+          <label class="field-label" for="entry-break">Descanso (minutos, opcional)</label>
+          <input id="entry-break" class="field" type="number" inputmode="numeric" min="0" formControlName="breakMinutes" placeholder="0" />
+        }
+
+        @if (entryError()) { <div class="error-box">{{ entryError() }}</div> }
+
+        @if (entryPreviewMinutes() > 0) {
+          <div class="preview-box">
+            <div><span>Total</span><strong>{{ formatHours(entryPreviewMinutes()) }}</strong></div>
+            <div class="right"><span>Pago neto</span><strong>{{ formatCurrency(entryPreviewNet()) }}</strong></div>
+          </div>
+        }
+
+        <button class="primary-button" type="submit" [disabled]="entrySaving()">
+          @if (entrySaving()) { <ion-spinner name="crescent"></ion-spinner> } @else { Guardar jornada }
+        </button>
+
+        @if (editingDate()) {
+          <button class="danger-link" type="button" [disabled]="entrySaving()" (click)="requestDelete()">Eliminar jornada</button>
+        }
+      </form>
+    </div>
+  </ng-template>
+</ion-modal>
+
+<!-- ===================== CONFIRM DELETE ===================== -->
+<ion-modal class="confirm-modal" [isOpen]="confirmDeleteOpen()" [backdropDismiss]="false" (didDismiss)="cancelDelete()">
+  <ng-template>
+    <div class="confirm-body">
+      <h2>¿Eliminar esta jornada?</h2>
+      <p>Esta acción no se puede deshacer.</p>
+      <div class="confirm-actions">
+        <button type="button" class="cancel" [disabled]="entrySaving()" (click)="cancelDelete()">Cancelar</button>
+        <button type="button" class="delete" [disabled]="entrySaving()" (click)="confirmDelete()">Eliminar</button>
+      </div>
+    </div>
+  </ng-template>
+</ion-modal>
+
+<!-- ===================== RATES SHEET ===================== -->
+<ion-modal class="sheet-modal" [isOpen]="settingsModalOpen()" [initialBreakpoint]="1" [breakpoints]="[0, 1]" [handle]="false" (didDismiss)="settingsModalOpen.set(false)">
+  <ng-template>
+    <div class="sheet-body">
+      <div class="sheet-handle"></div>
+      <h2 class="sheet-title">Cambiar tarifas</h2>
+      <p class="sheet-note">Las jornadas ya registradas conservan la tarifa con la que se crearon.</p>
+
+      <form [formGroup]="settingsForm" (ngSubmit)="saveSettings()" novalidate>
+        <label class="field-label" for="rates-gross">Tarifa bruta por hora (PLN)</label>
+        <input id="rates-gross" class="field" type="number" inputmode="decimal" min="0.01" step="0.01" formControlName="grossHourlyRate" />
+
+        <label class="field-label" for="rates-net">Tarifa neta por hora (PLN)</label>
+        <input id="rates-net" class="field" type="number" inputmode="decimal" min="0.01" step="0.01" formControlName="netHourlyRate" />
+
+        @if (settingsError()) { <div class="error-box">{{ settingsError() }}</div> }
+
+        <button class="primary-button" type="submit" [disabled]="settingsSaving()">
+          @if (settingsSaving()) { <ion-spinner name="crescent"></ion-spinner> } @else { Guardar tarifas }
+        </button>
+      </form>
+    </div>
+  </ng-template>
+</ion-modal>
