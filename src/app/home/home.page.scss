@@ -176,6 +176,11 @@ ion-content {
     height: 17px;
     accent-color: $green;
   }
+
+  &.compact {
+    margin-top: 0;
+    font-size: 12px;
+  }
 }
 
 .capitalized {
@@ -504,9 +509,10 @@ ion-content {
 .pay-chips {
   display: flex;
   gap: 10px;
+  flex-wrap: wrap;
 
   > div {
-    flex: 1;
+    flex: 1 1 120px;
     padding: 10px 12px;
     border-radius: 12px;
     background: rgba(255, 255, 255, 0.12);
@@ -885,6 +891,64 @@ ion-modal.sheet-modal {
   }
 }
 
+.discount-settings {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid $border;
+}
+
+.settings-section-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+
+  h3 {
+    margin: 0 0 4px;
+    color: $ink;
+    font-size: 14px;
+    font-weight: 800;
+  }
+
+  .sheet-note {
+    margin-bottom: 0;
+  }
+}
+
+.mini-action {
+  flex-shrink: 0;
+  padding: 8px 11px;
+  border: 1.5px solid #cfe0d8;
+  border-radius: 10px;
+  background: #fbfffd;
+  color: $green;
+  font-family: 'Manrope', system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.discount-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.discount-row {
+  padding: 12px;
+  border: 1.5px solid $border;
+  border-radius: 14px;
+  background: $surface;
+}
+
+.empty-note {
+  margin: 0;
+  color: $muted;
+  font-size: 12px;
+  font-weight: 600;
+}
+
 .lock-screen {
   position: fixed;
   inset: 0;
@@ -976,6 +1040,13 @@ ion-modal.sheet-modal {
   font-size: 13.5px;
   font-weight: 700;
   cursor: pointer;
+
+  &.inline {
+    margin-top: 8px;
+    padding: 8px 0 0;
+    text-align: left;
+    font-size: 12px;
+  }
 }
 
 ion-modal.confirm-modal {

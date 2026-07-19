@@ -1,5 +1,6 @@
 import { WorkEntry } from '../models/payroll.models';
 import {
+  calculateDiscountAmount,
   calculateDashboardInsights,
   calculateMonthlySummary,
   calculateScheduleMinutes,
@@ -38,7 +39,41 @@ describe('payroll utils', () => {
       workedMinutes: 930,
       grossAmount: 465,
       netAmount: 372,
+      discountAmount: 0,
+      finalNetAmount: 372,
     });
+  });
+
+  it('calculates final monthly pay after fixed and percentage discounts', () => {
+    const entries: WorkEntry[] = [
+      {
+        date: '2026-07-01',
+        mode: 'manual',
+        workedMinutes: 600,
+        breakMinutes: 0,
+        grossHourlyRate: 30,
+        netHourlyRate: 24,
+      },
+    ];
+
+    expect(calculateMonthlySummary(entries, [
+      { id: 'loan', name: 'Prestamo', type: 'fixed', value: 20, enabled: true },
+      { id: 'fund', name: 'Fondo', type: 'percentage', value: 10, enabled: true },
+      { id: 'off', name: 'Inactivo', type: 'fixed', value: 50, enabled: false },
+    ])).toEqual({
+      daysWorked: 1,
+      workedMinutes: 600,
+      grossAmount: 300,
+      netAmount: 240,
+      discountAmount: 44,
+      finalNetAmount: 196,
+    });
+  });
+
+  it('caps discounts at the net amount', () => {
+    expect(calculateDiscountAmount(80, [
+      { id: 'advance', name: 'Adelanto', type: 'fixed', value: 120, enabled: true },
+    ])).toBe(80);
   });
 
   it('moves December into January of the next year', () => {
@@ -79,6 +114,8 @@ describe('payroll utils', () => {
       workedMinutes: 120,
       grossAmount: 60,
       netAmount: 48,
+      discountAmount: 0,
+      finalNetAmount: 48,
     });
     expect(weeks[1].startDate).toBe('2026-07-06');
     expect(weeks[1].workedMinutes).toBe(480);
@@ -89,8 +126,10 @@ describe('payroll utils', () => {
       todayEntry: null,
       averageWorkedMinutes: 0,
       averageNetAmount: 0,
+      averageFinalNetAmount: 0,
       projectedWorkedMinutes: 0,
       projectedNetAmount: 0,
+      projectedFinalNetAmount: 0,
       lastScheduleEntry: null,
     });
   });
@@ -111,8 +150,30 @@ describe('payroll utils', () => {
 
     expect(insights.averageWorkedMinutes).toBe(600);
     expect(insights.averageNetAmount).toBe(240);
+    expect(insights.averageFinalNetAmount).toBe(240);
     expect(insights.projectedWorkedMinutes).toBe(1860);
     expect(insights.projectedNetAmount).toBe(744);
+    expect(insights.projectedFinalNetAmount).toBe(744);
+  });
+
+  it('projects final net amount after monthly discounts', () => {
+    const entries: WorkEntry[] = [
+      {
+        date: '2026-07-05',
+        mode: 'manual',
+        workedMinutes: 600,
+        breakMinutes: 0,
+        grossHourlyRate: 30,
+        netHourlyRate: 24,
+      },
+    ];
+
+    const insights = calculateDashboardInsights(entries, '2026-07', '2026-07-10', [
+      { id: 'loan', name: 'Prestamo', type: 'fixed', value: 44, enabled: true },
+    ]);
+
+    expect(insights.projectedNetAmount).toBe(744);
+    expect(insights.projectedFinalNetAmount).toBe(700);
   });
 
   it('finds the last schedule entry that can be reused', () => {

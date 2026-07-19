@@ -1,4 +1,4 @@
-import { DashboardInsights, MonthlySummary, WeeklySummary, WorkEntry } from '../models/payroll.models';
+import { DashboardInsights, MonthlySummary, PayrollDiscount, WeeklySummary, WorkEntry } from '../models/payroll.models';
 
 export const WARSAW_TIMEZONE = 'Europe/Warsaw';
 
@@ -23,8 +23,20 @@ export function calculateScheduleMinutes(startTime: string, endTime: string, bre
   return end - start - breakMinutes;
 }
 
-export function calculateMonthlySummary(entries: WorkEntry[]): MonthlySummary {
-  return entries.reduce<MonthlySummary>(
+export function calculateDiscountAmount(netAmount: number, discounts: PayrollDiscount[] = []): number {
+  const enabledDiscounts = discounts.filter((discount) => discount.enabled && discount.value > 0);
+  const percentageAmount = enabledDiscounts
+    .filter((discount) => discount.type === 'percentage')
+    .reduce((total, discount) => total + netAmount * (Math.min(discount.value, 100) / 100), 0);
+  const fixedAmount = enabledDiscounts
+    .filter((discount) => discount.type === 'fixed')
+    .reduce((total, discount) => total + discount.value, 0);
+
+  return Math.min(netAmount, percentageAmount + fixedAmount);
+}
+
+export function calculateMonthlySummary(entries: WorkEntry[], discounts: PayrollDiscount[] = []): MonthlySummary {
+  const summary = entries.reduce<Omit<MonthlySummary, 'discountAmount' | 'finalNetAmount'>>(
     (summary, entry) => ({
       daysWorked: summary.daysWorked + 1,
       workedMinutes: summary.workedMinutes + entry.workedMinutes,
@@ -33,6 +45,12 @@ export function calculateMonthlySummary(entries: WorkEntry[]): MonthlySummary {
     }),
     { daysWorked: 0, workedMinutes: 0, grossAmount: 0, netAmount: 0 },
   );
+  const discountAmount = calculateDiscountAmount(summary.netAmount, discounts);
+  return {
+    ...summary,
+    discountAmount,
+    finalNetAmount: summary.netAmount - discountAmount,
+  };
 }
 
 export function calculateWeeklySummaries(entries: WorkEntry[], monthKey: string): WeeklySummary[] {
@@ -93,11 +111,13 @@ export function calculateDashboardInsights(
   entries: WorkEntry[],
   monthKey: string,
   today: string,
+  discounts: PayrollDiscount[] = [],
 ): DashboardInsights {
-  const summary = calculateMonthlySummary(entries);
+  const summary = calculateMonthlySummary(entries, discounts);
   const todayEntry = entries.find((entry) => entry.date === today) ?? null;
   const averageWorkedMinutes = summary.daysWorked ? summary.workedMinutes / summary.daysWorked : 0;
   const averageNetAmount = summary.daysWorked ? summary.netAmount / summary.daysWorked : 0;
+  const averageFinalNetAmount = summary.daysWorked ? summary.finalNetAmount / summary.daysWorked : 0;
   const lastScheduleEntry = [...entries]
     .reverse()
     .find((entry) => entry.mode === 'schedule' && entry.startTime && entry.endTime) ?? null;
@@ -107,8 +127,10 @@ export function calculateDashboardInsights(
       todayEntry,
       averageWorkedMinutes,
       averageNetAmount,
+      averageFinalNetAmount,
       projectedWorkedMinutes: summary.workedMinutes,
       projectedNetAmount: summary.netAmount,
+      projectedFinalNetAmount: summary.finalNetAmount,
       lastScheduleEntry,
     };
   }
@@ -121,8 +143,14 @@ export function calculateDashboardInsights(
     todayEntry,
     averageWorkedMinutes,
     averageNetAmount,
+    averageFinalNetAmount,
     projectedWorkedMinutes: (summary.workedMinutes / elapsedDays) * daysInMonth,
     projectedNetAmount: (summary.netAmount / elapsedDays) * daysInMonth,
+    projectedFinalNetAmount: Math.max(
+      0,
+      (summary.netAmount / elapsedDays) * daysInMonth
+        - calculateDiscountAmount((summary.netAmount / elapsedDays) * daysInMonth, discounts),
+    ),
     lastScheduleEntry,
   };
 }

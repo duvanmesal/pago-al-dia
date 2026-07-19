@@ -12,7 +12,7 @@ import {
   Unsubscribe,
   where,
 } from 'firebase/firestore';
-import { UserSettings, WorkEntry, WorkEntryInput } from '../models/payroll.models';
+import { PayrollDiscount, UserSettings, WorkEntry, WorkEntryInput } from '../models/payroll.models';
 import { getWarsawDate } from '../utils/payroll.utils';
 import { AuthService } from './auth.service';
 import { FirebaseService } from './firebase.service';
@@ -51,7 +51,7 @@ export class WorkDataService {
       stopSettings = onSnapshot(
         doc(this.firebase.firestore, 'users', user.uid),
         (snapshot) => {
-          this.settings.set(snapshot.exists() ? (snapshot.data() as UserSettings) : null);
+          this.settings.set(snapshot.exists() ? this.normalizeSettings(snapshot.data()) : null);
           this.settingsLoading.set(false);
         },
         () => this.handleReadError('No pudimos cargar la configuración.'),
@@ -80,13 +80,14 @@ export class WorkDataService {
     });
   }
 
-  async saveSettings(grossHourlyRate: number, netHourlyRate: number): Promise<void> {
+  async saveSettings(grossHourlyRate: number, netHourlyRate: number, discounts: PayrollDiscount[] = []): Promise<void> {
     const uid = this.requireUid();
     await setDoc(
       doc(this.firebase.firestore, 'users', uid),
       {
         grossHourlyRate,
         netHourlyRate,
+        discounts,
         currency: 'PLN',
         timezone: 'Europe/Warsaw',
         updatedAt: serverTimestamp(),
@@ -134,5 +135,33 @@ export class WorkDataService {
     this.error.set(message);
     this.settingsLoading.set(false);
     this.entriesLoading.set(false);
+  }
+
+  private normalizeSettings(data: Partial<UserSettings>): UserSettings {
+    return {
+      grossHourlyRate: Number(data.grossHourlyRate ?? 0),
+      netHourlyRate: Number(data.netHourlyRate ?? 0),
+      discounts: this.normalizeDiscounts(data.discounts),
+      currency: 'PLN',
+      timezone: 'Europe/Warsaw',
+    };
+  }
+
+  private normalizeDiscounts(value: unknown): PayrollDiscount[] {
+    if (!Array.isArray(value)) return [];
+
+    return value
+      .map((discount, index) => {
+        const item = discount as Partial<PayrollDiscount>;
+        const type: PayrollDiscount['type'] = item.type === 'percentage' ? 'percentage' : 'fixed';
+        return {
+          id: item.id || `discount-${index}`,
+          name: String(item.name ?? ''),
+          type,
+          value: Number(item.value ?? 0),
+          enabled: item.enabled !== false,
+        };
+      })
+      .filter((discount) => Number.isFinite(discount.value));
   }
 }

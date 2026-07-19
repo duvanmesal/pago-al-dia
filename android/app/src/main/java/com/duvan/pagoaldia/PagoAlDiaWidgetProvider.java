@@ -32,7 +32,7 @@ public class PagoAlDiaWidgetProvider extends AppWidgetProvider {
             views.setTextViewText(R.id.widget_week_hours, "Semana: " + formatHours(weekMinutes));
             views.setTextViewText(
                 R.id.widget_amount,
-                showAmounts ? String.format(Locale.US, "%.2f PLN", netAmount) : "Pago oculto"
+                showAmounts ? String.format(Locale.US, "Final: %.2f PLN", netAmount) : "Pago oculto"
             );
             views.setTextViewText(R.id.widget_payment_date, paymentDate.isEmpty() ? "Pago al Día" : "Pago: " + paymentDate);
 

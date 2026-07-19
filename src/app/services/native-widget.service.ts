@@ -40,7 +40,7 @@ export class NativeWidgetService {
       todayWorkedMinutes: insights.todayEntry?.workedMinutes ?? 0,
       hasTodayEntry: Boolean(insights.todayEntry),
       weekWorkedMinutes: currentWeek.workedMinutes,
-      monthNetAmount: summary.netAmount,
+      monthNetAmount: summary.finalNetAmount,
       paymentDateLabel,
       showAmounts,
       lastUpdatedAt: new Date().toISOString(),

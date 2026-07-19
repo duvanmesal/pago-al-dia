@@ -1,8 +1,18 @@
 export type EntryMode = 'manual' | 'schedule';
+export type PayrollDiscountType = 'fixed' | 'percentage';
+
+export interface PayrollDiscount {
+  id: string;
+  name: string;
+  type: PayrollDiscountType;
+  value: number;
+  enabled: boolean;
+}
 
 export interface UserSettings {
   grossHourlyRate: number;
   netHourlyRate: number;
+  discounts: PayrollDiscount[];
   currency: 'PLN';
   timezone: 'Europe/Warsaw';
 }
@@ -36,6 +46,8 @@ export interface MonthlySummary {
   workedMinutes: number;
   grossAmount: number;
   netAmount: number;
+  discountAmount: number;
+  finalNetAmount: number;
 }
 
 export interface WeeklySummary extends MonthlySummary {
@@ -48,7 +60,9 @@ export interface DashboardInsights {
   todayEntry: WorkEntry | null;
   averageWorkedMinutes: number;
   averageNetAmount: number;
+  averageFinalNetAmount: number;
   projectedWorkedMinutes: number;
   projectedNetAmount: number;
+  projectedFinalNetAmount: number;
   lastScheduleEntry: WorkEntry | null;
 }

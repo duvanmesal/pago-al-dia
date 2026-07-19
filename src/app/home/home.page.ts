@@ -14,7 +14,7 @@ import {
   logOutOutline,
   settingsOutline,
 } from 'ionicons/icons';
-import { EntryMode, WorkEntry } from '../models/payroll.models';
+import { EntryMode, PayrollDiscount, PayrollDiscountType, WorkEntry } from '../models/payroll.models';
 import { AuthService } from '../services/auth.service';
 import { NativeSecurityService } from '../services/native-security.service';
 import { NativeWidgetService } from '../services/native-widget.service';
@@ -63,6 +63,7 @@ export class HomePage {
   readonly securityLocked = signal(false);
   readonly securityError = signal<string | null>(null);
   readonly widgetShowAmounts = signal(false);
+  readonly discountDraft = signal<PayrollDiscount[]>([]);
 
   readonly user = this.auth.user;
   readonly authReady = this.auth.ready;
@@ -76,10 +77,13 @@ export class HomePage {
   readonly currentMonth = this.today.slice(0, 7);
   readonly isNativeAndroid = this.platform.isNative && this.platform.isAndroid;
 
-  readonly summary = computed(() => calculateMonthlySummary(this.entries()));
+  readonly activeDiscounts = computed(() => this.settings()?.discounts ?? []);
+  readonly summary = computed(() => calculateMonthlySummary(this.entries(), this.activeDiscounts()));
   readonly weeklySummaries = computed(() => calculateWeeklySummaries(this.entries(), this.selectedMonth()));
   readonly currentWeekSummary = computed(() => calculateCurrentWeekSummary(this.entries(), this.today));
-  readonly insights = computed(() => calculateDashboardInsights(this.entries(), this.selectedMonth(), this.today));
+  readonly insights = computed(() =>
+    calculateDashboardInsights(this.entries(), this.selectedMonth(), this.today, this.activeDiscounts()),
+  );
   readonly canGoNext = computed(() => this.selectedMonth() < this.currentMonth);
   readonly isCurrentMonth = computed(() => this.selectedMonth() === this.currentMonth);
   readonly monthTitle = computed(() => this.formatMonth(this.selectedMonth()));
@@ -230,6 +234,7 @@ export class HomePage {
 
   async saveSettings(): Promise<void> {
     const { grossHourlyRate, netHourlyRate } = this.settingsForm.getRawValue();
+    const discounts = this.normalizedDiscountDraft();
     if (!grossHourlyRate || !netHourlyRate || grossHourlyRate <= 0 || netHourlyRate <= 0) {
       this.settingsError.set('Ambas tarifas deben ser mayores que cero.');
       return;
@@ -238,11 +243,21 @@ export class HomePage {
       this.settingsError.set('La tarifa neta no puede ser mayor que la bruta.');
       return;
     }
+    const invalidDiscount = discounts.find((discount) =>
+      !discount.name
+        || !Number.isFinite(discount.value)
+        || discount.value < 0
+        || (discount.type === 'percentage' && discount.value > 100),
+    );
+    if (invalidDiscount) {
+      this.settingsError.set('Revisa los descuentos: nombre requerido, monto válido y porcentaje máximo 100%.');
+      return;
+    }
 
     this.settingsError.set(null);
     this.settingsSaving.set(true);
     try {
-      await this.data.saveSettings(grossHourlyRate, netHourlyRate);
+      await this.data.saveSettings(grossHourlyRate, netHourlyRate, discounts);
       await this.syncWidget();
       this.settingsModalOpen.set(false);
     } catch {
@@ -293,9 +308,49 @@ export class HomePage {
         grossHourlyRate: settings.grossHourlyRate,
         netHourlyRate: settings.netHourlyRate,
       });
+      this.discountDraft.set(settings.discounts.map((discount) => ({ ...discount })));
+    } else {
+      this.discountDraft.set([]);
     }
     this.settingsError.set(null);
     this.settingsModalOpen.set(true);
+  }
+
+  addDiscount(): void {
+    this.discountDraft.update((discounts) => [
+      ...discounts,
+      {
+        id: this.createDiscountId(),
+        name: '',
+        type: 'fixed',
+        value: 0,
+        enabled: true,
+      },
+    ]);
+  }
+
+  removeDiscount(id: string): void {
+    this.discountDraft.update((discounts) => discounts.filter((discount) => discount.id !== id));
+  }
+
+  updateDiscountName(id: string, event: Event): void {
+    const name = (event.target as HTMLInputElement).value;
+    this.updateDiscount(id, { name });
+  }
+
+  updateDiscountType(id: string, event: Event): void {
+    const type = (event.target as HTMLSelectElement).value as PayrollDiscountType;
+    this.updateDiscount(id, { type });
+  }
+
+  updateDiscountValue(id: string, event: Event): void {
+    const value = Number((event.target as HTMLInputElement).value || 0);
+    this.updateDiscount(id, { value });
+  }
+
+  toggleDiscount(id: string, event: Event): void {
+    const enabled = (event.target as HTMLInputElement).checked;
+    this.updateDiscount(id, { enabled });
   }
 
   // ---------- entries ----------
@@ -535,6 +590,27 @@ export class HomePage {
       this.widgetShowAmounts(),
     );
     await this.nativeWidget.updateWidget(snapshot).catch(() => undefined);
+  }
+
+  private updateDiscount(id: string, changes: Partial<PayrollDiscount>): void {
+    this.discountDraft.update((discounts) =>
+      discounts.map((discount) => discount.id === id ? { ...discount, ...changes } : discount),
+    );
+    this.settingsError.set(null);
+  }
+
+  private normalizedDiscountDraft(): PayrollDiscount[] {
+    return this.discountDraft().map((discount) => ({
+      id: discount.id,
+      name: discount.name.trim(),
+      type: discount.type,
+      value: Number(discount.value || 0),
+      enabled: discount.enabled,
+    }));
+  }
+
+  private createDiscountId(): string {
+    return `discount-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   }
 
   private formatMonth(monthKey: string): string {

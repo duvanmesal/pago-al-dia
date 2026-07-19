@@ -120,11 +120,12 @@
         <section class="loading-card"><ion-spinner name="crescent"></ion-spinner><span>Cargando jornadas…</span></section>
       } @else {
         <section class="pay-card">
-          <span class="pay-label">Pago neto estimado</span>
-          <strong class="pay-amount">{{ formatCurrency(summary().netAmount) }}</strong>
+          <span class="pay-label">Pago final estimado</span>
+          <strong class="pay-amount">{{ formatCurrency(summary().finalNetAmount) }}</strong>
           <div class="pay-chips">
+            <div><span>Neto antes de descuentos</span><strong>{{ formatCurrency(summary().netAmount) }}</strong></div>
+            <div><span>Descuentos</span><strong>{{ formatCurrency(summary().discountAmount) }}</strong></div>
             <div><span>Pago bruto</span><strong>{{ formatCurrency(summary().grossAmount) }}</strong></div>
-            <div><span>Fecha de pago</span><strong>{{ paymentDateLabel() }}</strong></div>
           </div>
         </section>
 
@@ -152,11 +153,11 @@
           <article class="widget-card">
             <span>Promedio</span>
             <strong>{{ formatHours(insights().averageWorkedMinutes) }}</strong>
-            <small>{{ formatCurrency(insights().averageNetAmount) }} por jornada</small>
+            <small>{{ formatCurrency(insights().averageFinalNetAmount) }} final por jornada</small>
           </article>
           <article class="widget-card">
             <span>Proyección</span>
-            <strong>{{ formatCurrency(insights().projectedNetAmount) }}</strong>
+            <strong>{{ formatCurrency(insights().projectedFinalNetAmount) }}</strong>
             <small>{{ formatHours(insights().projectedWorkedMinutes) }} al cierre</small>
           </article>
         </section>
@@ -177,6 +178,11 @@
               } @else { <span class="empty-day"></span> }
             }
           </div>
+        </section>
+
+        <section class="stats-row">
+          <article><span>Pago</span><strong>{{ paymentDateLabel() }}</strong></article>
+          <article><span>Neto proyectado</span><strong>{{ formatCurrency(insights().projectedNetAmount) }}</strong></article>
         </section>
 
         @if (weeklySummaries().length) {
@@ -353,6 +359,49 @@
           @if (settingsSaving()) { <ion-spinner name="crescent"></ion-spinner> } @else { Guardar tarifas }
         </button>
       </form>
+
+      <section class="discount-settings">
+        <div class="settings-section-header">
+          <div>
+            <h3>Descuentos del sueldo</h3>
+            <p class="sheet-note">Se restan al total neto mensual para calcular el pago final.</p>
+          </div>
+          <button type="button" class="mini-action" (click)="addDiscount()">Agregar</button>
+        </div>
+
+        @if (discountDraft().length) {
+          <div class="discount-list">
+            @for (discount of discountDraft(); track discount.id) {
+              <article class="discount-row">
+                <label class="checkbox-row compact">
+                  <input type="checkbox" [checked]="discount.enabled" (change)="toggleDiscount(discount.id, $event)" />
+                  Activo
+                </label>
+                <label class="field-label" [for]="'discount-name-' + discount.id">Nombre</label>
+                <input [id]="'discount-name-' + discount.id" class="field" type="text" [value]="discount.name" placeholder="Ej: Adelanto" (input)="updateDiscountName(discount.id, $event)" />
+
+                <div class="field-pair">
+                  <div>
+                    <label class="field-label" [for]="'discount-type-' + discount.id">Tipo</label>
+                    <select [id]="'discount-type-' + discount.id" class="field" [value]="discount.type" (change)="updateDiscountType(discount.id, $event)">
+                      <option value="fixed">Monto fijo</option>
+                      <option value="percentage">Porcentaje</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="field-label" [for]="'discount-value-' + discount.id">Valor</label>
+                    <input [id]="'discount-value-' + discount.id" class="field" type="number" inputmode="decimal" min="0" [attr.max]="discount.type === 'percentage' ? 100 : null" step="0.01" [value]="discount.value" (input)="updateDiscountValue(discount.id, $event)" />
+                  </div>
+                </div>
+
+                <button class="danger-link inline" type="button" (click)="removeDiscount(discount.id)">Eliminar descuento</button>
+              </article>
+            }
+          </div>
+        } @else {
+          <p class="empty-note">Sin descuentos configurados.</p>
+        }
+      </section>
 
       @if (isNativeAndroid) {
         <section class="mobile-settings">
