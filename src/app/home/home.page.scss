@@ -308,6 +308,13 @@ ion-content {
   text-align: center;
 }
 
+.mobile-note {
+  margin: 14px 0 0;
+  color: $muted;
+  font-size: 12px;
+  text-align: center;
+}
+
 // ---------- setup ----------
 
 .setup-screen {
@@ -548,6 +555,50 @@ ion-content {
   }
 }
 
+.widget-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.widget-card {
+  min-width: 0;
+  padding: 13px;
+  border: 1.5px solid $border;
+  border-radius: 16px;
+  background: #fff;
+  text-align: left;
+
+  span {
+    display: block;
+    color: $soft;
+    font-size: 11.5px;
+    font-weight: 800;
+  }
+
+  strong {
+    display: block;
+    margin-top: 5px;
+    color: $ink;
+    font-size: 18px;
+    font-weight: 800;
+    overflow-wrap: anywhere;
+  }
+
+  small {
+    display: block;
+    margin-top: 5px;
+    color: $muted;
+    font-size: 11.5px;
+    font-weight: 700;
+  }
+}
+
+button.widget-card {
+  cursor: pointer;
+}
+
 .calendar-card {
   padding: 16px;
   border: 1.5px solid $border;
@@ -599,6 +650,16 @@ ion-content {
       color: #fff;
     }
 
+    &.short-shift {
+      background: #eef5f2;
+      color: $green-deep;
+    }
+
+    &.long-shift {
+      background: $green-deep;
+      color: #fff;
+    }
+
     &.today:not(.worked) {
       border-color: $green;
     }
@@ -620,6 +681,17 @@ ion-content {
   font-size: 8.5px;
   font-weight: 700;
   white-space: nowrap;
+}
+
+.weekly-values {
+  flex-shrink: 0;
+  text-align: right;
+
+  strong {
+    display: block;
+    color: $green;
+  }
+
 }
 
 .detail-title {
@@ -798,6 +870,67 @@ ion-modal.sheet-modal {
   margin: 0 0 16px;
   color: $muted;
   font-size: 12px;
+}
+
+.mobile-settings {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid $border;
+
+  h3 {
+    margin: 0 0 4px;
+    color: $ink;
+    font-size: 14px;
+    font-weight: 800;
+  }
+}
+
+.lock-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: $surface;
+}
+
+.lock-panel {
+  width: min(100%, 360px);
+  padding: 24px;
+  border-radius: 22px;
+  background: #fff;
+  box-shadow: 0 18px 42px rgba(23, 107, 84, 0.14);
+
+  h2 {
+    margin: 0 0 6px;
+    color: $ink;
+    font-size: 18px;
+    font-weight: 800;
+  }
+
+  p {
+    margin: 0 0 14px;
+    color: $secondary;
+    font-size: 13px;
+  }
+}
+
+.reuse-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  margin-bottom: 12px;
+  padding: 11px 12px;
+  border: 1.5px solid #cfe0d8;
+  border-radius: 12px;
+  background: #fbfffd;
+  color: $green;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
 }
 
 .preview-box {

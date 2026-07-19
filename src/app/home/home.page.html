@@ -133,6 +133,34 @@
           <article><span>Días trabajados</span><strong>{{ summary().daysWorked }}</strong></article>
         </section>
 
+        <section class="widget-grid" aria-label="Widgets del mes">
+          <button type="button" class="widget-card today-widget" (click)="openEntry(today)" [disabled]="!isCurrentMonth()">
+            <span>Hoy</span>
+            @if (insights().todayEntry; as todayEntry) {
+              <strong>{{ formatHours(todayEntry.workedMinutes) }}</strong>
+              <small>Editar jornada</small>
+            } @else {
+              <strong>Sin registro</strong>
+              <small>{{ isCurrentMonth() ? 'Agregar jornada' : 'Disponible en el mes actual' }}</small>
+            }
+          </button>
+          <article class="widget-card">
+            <span>Esta semana</span>
+            <strong>{{ formatHours(currentWeekSummary().workedMinutes) }}</strong>
+            <small>{{ currentWeekSummary().daysWorked }} días · {{ formatCurrency(currentWeekSummary().netAmount) }}</small>
+          </article>
+          <article class="widget-card">
+            <span>Promedio</span>
+            <strong>{{ formatHours(insights().averageWorkedMinutes) }}</strong>
+            <small>{{ formatCurrency(insights().averageNetAmount) }} por jornada</small>
+          </article>
+          <article class="widget-card">
+            <span>Proyección</span>
+            <strong>{{ formatCurrency(insights().projectedNetAmount) }}</strong>
+            <small>{{ formatHours(insights().projectedWorkedMinutes) }} al cierre</small>
+          </article>
+        </section>
+
         @if (dataError()) { <div class="error-box">{{ dataError() }}</div> }
 
         <section class="calendar-card">
@@ -142,7 +170,7 @@
           <div class="calendar-grid">
             @for (day of calendarDays(); track $index) {
               @if (day) {
-                <button type="button" [class.worked]="entryForDay(day)" [class.today]="dateForDay(day) === today" [disabled]="dateForDay(day) > today" (click)="openEntry(dateForDay(day))">
+                <button type="button" [class.worked]="entryForDay(day)" [class.short-shift]="dayIntensity(day) === 'short-shift'" [class.normal-shift]="dayIntensity(day) === 'normal-shift'" [class.long-shift]="dayIntensity(day) === 'long-shift'" [class.today]="dateForDay(day) === today" [disabled]="dateForDay(day) > today" (click)="openEntry(dateForDay(day))">
                   <span class="cal-day">{{ day }}</span>
                   @if (entryForDay(day); as entry) { <span class="cal-hours">{{ formatHours(entry.workedMinutes) }}</span> }
                 </button>
@@ -150,6 +178,27 @@
             }
           </div>
         </section>
+
+        @if (weeklySummaries().length) {
+          <section class="calendar-card">
+            <h2 class="detail-title">Resumen por semana</h2>
+            <div class="entry-list">
+              @for (week of weeklySummaries(); track week.weekNumber) {
+                <article class="entry-row">
+                  <span class="entry-badge">{{ week.weekNumber }}</span>
+                  <span class="entry-info">
+                    <span class="entry-day">Semana {{ week.weekNumber }}</span>
+                    <span class="entry-meta">Días {{ formatDateRange(week.startDate, week.endDate) }}</span>
+                  </span>
+                  <span class="weekly-values">
+                    <strong>{{ formatHours(week.workedMinutes) }}</strong>
+                    <small>{{ formatCurrency(week.netAmount) }}</small>
+                  </span>
+                </article>
+              }
+            </div>
+          </section>
+        }
 
         <h2 class="detail-title">Detalle del mes</h2>
 
@@ -213,6 +262,12 @@
             </div>
           </div>
         } @else {
+          @if (insights().lastScheduleEntry) {
+            <button type="button" class="reuse-button" (click)="useLastSchedule()">
+              <ion-icon name="copy-outline"></ion-icon>
+              Usar último horario
+            </button>
+          }
           <div class="field-pair">
             <div>
               <label class="field-label" for="entry-start">Entrada</label>
@@ -244,9 +299,39 @@
           <button class="danger-link" type="button" [disabled]="entrySaving()" (click)="requestDelete()">Eliminar jornada</button>
         }
       </form>
+
+      @if (isNativeAndroid) {
+        <section class="mobile-settings">
+          <h3>Opciones del teléfono</h3>
+          <label class="checkbox-row">
+            <input type="checkbox" [checked]="biometricEnabled()" [disabled]="!biometricAvailable()" (change)="toggleBiometric($event)" />
+            Desbloquear con biometría
+          </label>
+          <label class="checkbox-row">
+            <input type="checkbox" [checked]="widgetShowAmounts()" (change)="toggleWidgetAmounts($event)" />
+            Mostrar pago en widget
+          </label>
+          @if (!biometricAvailable()) { <p class="sheet-note">Este teléfono no reporta biometría o credencial disponible.</p> }
+          @if (securityError()) { <div class="error-box">{{ securityError() }}</div> }
+        </section>
+      }
     </div>
   </ng-template>
 </ion-modal>
+
+@if (securityLocked()) {
+  <div class="lock-screen">
+    <div class="lock-panel">
+      <div class="setup-icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 10V8a5 5 0 0110 0v2M6 10h12v10H6V10z" stroke="#176b54" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <h2>Pago al Día bloqueado</h2>
+      <p>Confirma tu identidad para continuar.</p>
+      @if (securityError()) { <div class="error-box">{{ securityError() }}</div> }
+      <button class="primary-button" type="button" (click)="unlockWithBiometrics()">Desbloquear</button>
+    </div>
+  </div>
+}
 
 <!-- ===================== CONFIRM DELETE ===================== -->
 <ion-modal class="confirm-modal" [isOpen]="confirmDeleteOpen()" [backdropDismiss]="false" (didDismiss)="cancelDelete()">

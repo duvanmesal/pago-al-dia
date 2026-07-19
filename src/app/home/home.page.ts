@@ -1,5 +1,7 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { App } from '@capacitor/app';
+import { Haptics, NotificationType } from '@capacitor/haptics';
 import { IonContent, IonIcon, IonModal, IonSpinner } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import {
@@ -8,15 +10,22 @@ import {
   chevronBack,
   chevronForward,
   closeOutline,
+  copyOutline,
   logOutOutline,
   settingsOutline,
 } from 'ionicons/icons';
 import { EntryMode, WorkEntry } from '../models/payroll.models';
 import { AuthService } from '../services/auth.service';
+import { NativeSecurityService } from '../services/native-security.service';
+import { NativeWidgetService } from '../services/native-widget.service';
+import { PlatformService } from '../services/platform.service';
 import { WorkDataService } from '../services/work-data.service';
 import {
+  calculateCurrentWeekSummary,
+  calculateDashboardInsights,
   calculateMonthlySummary,
   calculateScheduleMinutes,
+  calculateWeeklySummaries,
   getPaymentDate,
   getWarsawDate,
   shiftMonth,
@@ -32,6 +41,10 @@ export class HomePage {
   private readonly formBuilder = inject(FormBuilder);
   private readonly auth = inject(AuthService);
   private readonly data = inject(WorkDataService);
+  private readonly platform = inject(PlatformService);
+  private readonly nativeSecurity = inject(NativeSecurityService);
+  private readonly nativeWidget = inject(NativeWidgetService);
+  private lockedForUid: string | null = null;
 
   readonly registering = signal(false);
   readonly authLoading = signal(false);
@@ -45,6 +58,11 @@ export class HomePage {
   readonly entryError = signal<string | null>(null);
   readonly editingDate = signal<string | null>(null);
   readonly confirmDeleteOpen = signal(false);
+  readonly biometricAvailable = signal(false);
+  readonly biometricEnabled = signal(false);
+  readonly securityLocked = signal(false);
+  readonly securityError = signal<string | null>(null);
+  readonly widgetShowAmounts = signal(false);
 
   readonly user = this.auth.user;
   readonly authReady = this.auth.ready;
@@ -56,8 +74,12 @@ export class HomePage {
   readonly dataError = this.data.error;
   readonly today = getWarsawDate();
   readonly currentMonth = this.today.slice(0, 7);
+  readonly isNativeAndroid = this.platform.isNative && this.platform.isAndroid;
 
   readonly summary = computed(() => calculateMonthlySummary(this.entries()));
+  readonly weeklySummaries = computed(() => calculateWeeklySummaries(this.entries(), this.selectedMonth()));
+  readonly currentWeekSummary = computed(() => calculateCurrentWeekSummary(this.entries(), this.today));
+  readonly insights = computed(() => calculateDashboardInsights(this.entries(), this.selectedMonth(), this.today));
   readonly canGoNext = computed(() => this.selectedMonth() < this.currentMonth);
   readonly isCurrentMonth = computed(() => this.selectedMonth() === this.currentMonth);
   readonly monthTitle = computed(() => this.formatMonth(this.selectedMonth()));
@@ -99,7 +121,35 @@ export class HomePage {
   });
 
   constructor() {
-    addIcons({ add, calendarOutline, chevronBack, chevronForward, closeOutline, logOutOutline, settingsOutline });
+    addIcons({
+      add,
+      calendarOutline,
+      chevronBack,
+      chevronForward,
+      closeOutline,
+      copyOutline,
+      logOutOutline,
+      settingsOutline,
+    });
+    void this.initMobileFeatures();
+    effect(() => {
+      const user = this.user();
+      this.entries();
+      this.summary();
+      this.currentWeekSummary();
+      this.insights();
+      this.paymentDateLabel();
+      this.widgetShowAmounts();
+
+      if (!user) {
+        this.lockedForUid = null;
+        this.securityLocked.set(false);
+        return;
+      }
+
+      void this.lockForCurrentUserIfNeeded(user.uid);
+      void this.syncWidget();
+    });
   }
 
   // ---------- auth ----------
@@ -151,6 +201,10 @@ export class HomePage {
 
   async logout(): Promise<void> {
     await this.auth.signOut();
+    await this.nativeSecurity.setBiometricEnabled(false);
+    this.biometricEnabled.set(false);
+    this.securityLocked.set(false);
+    this.lockedForUid = null;
     this.authForm.reset();
     this.registering.set(false);
   }
@@ -189,12 +243,38 @@ export class HomePage {
     this.settingsSaving.set(true);
     try {
       await this.data.saveSettings(grossHourlyRate, netHourlyRate);
+      await this.syncWidget();
       this.settingsModalOpen.set(false);
     } catch {
       this.settingsError.set('No pudimos guardar las tarifas. Inténtalo de nuevo.');
     } finally {
       this.settingsSaving.set(false);
     }
+  }
+
+  async toggleBiometric(event: Event): Promise<void> {
+    const enabled = (event.target as HTMLInputElement).checked;
+    this.securityError.set(null);
+
+    if (enabled) {
+      const authenticated = await this.nativeSecurity.authenticate().catch(() => false);
+      if (!authenticated) {
+        this.biometricEnabled.set(false);
+        this.securityError.set('No se pudo activar la biometría.');
+        return;
+      }
+    }
+
+    await this.nativeSecurity.setBiometricEnabled(enabled);
+    this.biometricEnabled.set(enabled);
+    this.lockedForUid = enabled ? this.user()?.uid ?? null : null;
+  }
+
+  async toggleWidgetAmounts(event: Event): Promise<void> {
+    const showAmounts = (event.target as HTMLInputElement).checked;
+    this.widgetShowAmounts.set(showAmounts);
+    await this.nativeWidget.setShowAmounts(showAmounts);
+    await this.syncWidget();
   }
 
   openSettings(): void {
@@ -237,6 +317,21 @@ export class HomePage {
 
   setEntryMode(mode: EntryMode): void {
     this.entryForm.controls.mode.setValue(mode);
+    this.entryError.set(null);
+  }
+
+  useLastSchedule(): void {
+    const lastSchedule = this.insights().lastScheduleEntry;
+    if (!lastSchedule?.startTime || !lastSchedule.endTime) return;
+
+    this.entryForm.patchValue({
+      mode: 'schedule',
+      startTime: lastSchedule.startTime,
+      endTime: lastSchedule.endTime,
+      breakMinutes: lastSchedule.breakMinutes || null,
+      manualHours: null,
+      manualMinutes: null,
+    });
     this.entryError.set(null);
   }
 
@@ -297,6 +392,8 @@ export class HomePage {
           : { startTime: value.startTime, endTime: value.endTime }),
       });
       this.data.selectedMonth.set(value.date.slice(0, 7));
+      await Haptics.notification({ type: NotificationType.Success }).catch(() => undefined);
+      await this.syncWidget();
       this.closeEntry();
     } catch {
       this.entryError.set('No pudimos guardar la jornada. Inténtalo de nuevo.');
@@ -320,6 +417,8 @@ export class HomePage {
     this.entrySaving.set(true);
     try {
       await this.data.deleteEntry(date);
+      await Haptics.notification({ type: NotificationType.Warning }).catch(() => undefined);
+      await this.syncWidget();
       this.confirmDeleteOpen.set(false);
       this.closeEntry();
     } catch {
@@ -345,6 +444,14 @@ export class HomePage {
     return this.entries().find((entry) => entry.date === date);
   }
 
+  dayIntensity(day: number): 'short-shift' | 'normal-shift' | 'long-shift' | null {
+    const entry = this.entryForDay(day);
+    if (!entry) return null;
+    if (entry.workedMinutes < 240) return 'short-shift';
+    if (entry.workedMinutes >= 480) return 'long-shift';
+    return 'normal-shift';
+  }
+
   // ---------- formatting ----------
   formatHours(minutes: number): string {
     const total = Math.max(0, Math.round(minutes));
@@ -367,6 +474,60 @@ export class HomePage {
 
   dayNumber(date: string): number {
     return Number(date.slice(8, 10));
+  }
+
+  formatDateRange(startDate: string, endDate: string): string {
+    const start = Number(startDate.slice(8, 10));
+    const end = Number(endDate.slice(8, 10));
+    return `${start}-${end}`;
+  }
+
+  async unlockWithBiometrics(): Promise<void> {
+    this.securityError.set(null);
+    const authenticated = await this.nativeSecurity.authenticate().catch(() => false);
+    if (!authenticated) {
+      this.securityError.set('No pudimos desbloquear la app.');
+      return;
+    }
+
+    this.lockedForUid = this.user()?.uid ?? null;
+    this.securityLocked.set(false);
+  }
+
+  private async initMobileFeatures(): Promise<void> {
+    const [status, biometricEnabled, widgetShowAmounts] = await Promise.all([
+      this.nativeSecurity.getBiometricStatus(),
+      this.nativeSecurity.getBiometricEnabled(),
+      this.nativeWidget.getShowAmounts(),
+    ]);
+    this.biometricAvailable.set(status.available);
+    this.biometricEnabled.set(biometricEnabled);
+    this.widgetShowAmounts.set(widgetShowAmounts);
+
+    if (this.isNativeAndroid) {
+      await App.addListener('appStateChange', ({ isActive }) => {
+        if (isActive && this.user() && this.biometricEnabled()) {
+          this.securityLocked.set(true);
+        }
+      });
+    }
+  }
+
+  private async lockForCurrentUserIfNeeded(uid: string): Promise<void> {
+    if (!this.isNativeAndroid || !this.biometricEnabled() || this.lockedForUid === uid) return;
+    this.securityLocked.set(true);
+  }
+
+  private async syncWidget(): Promise<void> {
+    const snapshot = this.nativeWidget.createSnapshot(
+      this.today,
+      this.insights(),
+      this.currentWeekSummary(),
+      this.summary(),
+      this.paymentDateLabel(),
+      this.widgetShowAmounts(),
+    );
+    await this.nativeWidget.updateWidget(snapshot).catch(() => undefined);
   }
 
   private formatMonth(monthKey: string): string {

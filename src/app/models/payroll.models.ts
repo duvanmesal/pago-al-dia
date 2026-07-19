@@ -37,3 +37,18 @@ export interface MonthlySummary {
   grossAmount: number;
   netAmount: number;
 }
+
+export interface WeeklySummary extends MonthlySummary {
+  weekNumber: number;
+  startDate: string;
+  endDate: string;
+}
+
+export interface DashboardInsights {
+  todayEntry: WorkEntry | null;
+  averageWorkedMinutes: number;
+  averageNetAmount: number;
+  projectedWorkedMinutes: number;
+  projectedNetAmount: number;
+  lastScheduleEntry: WorkEntry | null;
+}

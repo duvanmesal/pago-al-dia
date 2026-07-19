@@ -1,8 +1,10 @@
 import { inject, Injectable, signal } from '@angular/core';
+import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
 import {
   createUserWithEmailAndPassword,
   GoogleAuthProvider,
   onAuthStateChanged,
+  signInWithCredential,
   signInWithEmailAndPassword,
   signInWithPopup,
   signOut,
@@ -10,10 +12,12 @@ import {
 } from 'firebase/auth';
 import { environment } from '../../environments/environment';
 import { FirebaseService } from './firebase.service';
+import { PlatformService } from './platform.service';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly firebase = inject(FirebaseService);
+  private readonly platform = inject(PlatformService);
 
   readonly user = signal<User | null>(null);
   readonly ready = signal(false);
@@ -40,6 +44,15 @@ export class AuthService {
   }
 
   async signInWithGoogle(): Promise<void> {
+    if (this.platform.isNative && this.platform.isAndroid) {
+      const result = await FirebaseAuthentication.signInWithGoogle();
+      const idToken = result.credential?.idToken;
+      if (!idToken) throw { code: 'auth/missing-google-token' };
+      const credential = GoogleAuthProvider.credential(idToken);
+      await signInWithCredential(this.requireAuth(), credential);
+      return;
+    }
+
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: 'select_account' });
     await signInWithPopup(this.requireAuth(), provider);
@@ -58,6 +71,7 @@ export class AuthService {
       'auth/popup-closed-by-user': 'Cerraste la ventana de Google antes de terminar.',
       'auth/popup-blocked': 'El navegador bloqueó la ventana de Google. Permite las ventanas emergentes.',
       'auth/weak-password': 'La contraseña debe tener al menos 6 caracteres.',
+      'auth/missing-google-token': 'Google no devolvió un token válido. Inténtalo de nuevo.',
     };
 
     return messages[code ?? ''] ?? 'No fue posible completar la autenticación. Inténtalo de nuevo.';
