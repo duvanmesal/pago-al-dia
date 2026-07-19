@@ -300,21 +300,6 @@
         }
       </form>
 
-      @if (isNativeAndroid) {
-        <section class="mobile-settings">
-          <h3>Opciones del teléfono</h3>
-          <label class="checkbox-row">
-            <input type="checkbox" [checked]="biometricEnabled()" [disabled]="!biometricAvailable()" (change)="toggleBiometric($event)" />
-            Desbloquear con biometría
-          </label>
-          <label class="checkbox-row">
-            <input type="checkbox" [checked]="widgetShowAmounts()" (change)="toggleWidgetAmounts($event)" />
-            Mostrar pago en widget
-          </label>
-          @if (!biometricAvailable()) { <p class="sheet-note">Este teléfono no reporta biometría o credencial disponible.</p> }
-          @if (securityError()) { <div class="error-box">{{ securityError() }}</div> }
-        </section>
-      }
     </div>
   </ng-template>
 </ion-modal>
@@ -368,6 +353,22 @@
           @if (settingsSaving()) { <ion-spinner name="crescent"></ion-spinner> } @else { Guardar tarifas }
         </button>
       </form>
+
+      @if (isNativeAndroid) {
+        <section class="mobile-settings">
+          <h3>Seguridad y teléfono</h3>
+          <label class="checkbox-row">
+            <input type="checkbox" [checked]="biometricEnabled()" [disabled]="!biometricAvailable()" (change)="toggleBiometric($event)" />
+            Activar ingreso por biometría
+          </label>
+          <label class="checkbox-row">
+            <input type="checkbox" [checked]="widgetShowAmounts()" (change)="toggleWidgetAmounts($event)" />
+            Mostrar pago en widget
+          </label>
+          @if (!biometricAvailable()) { <p class="sheet-note">Este teléfono no reporta biometría o credencial disponible.</p> }
+          @if (securityError()) { <div class="error-box">{{ securityError() }}</div> }
+        </section>
+      }
     </div>
   </ng-template>
 </ion-modal>
