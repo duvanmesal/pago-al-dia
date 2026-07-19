@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "489030296612-209qqaui50e9borletn1jbmrfep7k8f4.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.duvan.pagoaldia",
+            "certificate_hash": "37de57517ac6462a25d791b34a2e5bab43f05e04"
+          }
+        },
+        {
           "client_id": "489030296612-1qg9bg6gjla382hg6uiq8e8gecn3385o.apps.googleusercontent.com",
           "client_type": 3
         }
