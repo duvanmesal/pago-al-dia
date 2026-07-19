@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "489030296612",
+    "project_id": "pago-al-dia",
+    "storage_bucket": "pago-al-dia.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:489030296612:android:9e64abc23b094d4d08a4b1",
+        "android_client_info": {
+          "package_name": "com.duvan.pagoaldia"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "489030296612-1qg9bg6gjla382hg6uiq8e8gecn3385o.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBcP7kJaFxiGCgixejGBcdMKoto_zCYzz0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "489030296612-1qg9bg6gjla382hg6uiq8e8gecn3385o.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
