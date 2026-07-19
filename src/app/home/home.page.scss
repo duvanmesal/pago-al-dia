@@ -817,7 +817,7 @@ ion-modal.sheet-modal {
 .sheet-body {
   max-height: 82vh;
   overflow: auto;
-  padding: 18px 20px 28px;
+  padding: 18px 20px max(28px, calc(28px + env(safe-area-inset-bottom)));
   box-sizing: border-box;
   background: #fff;
 }

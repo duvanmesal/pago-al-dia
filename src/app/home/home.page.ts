@@ -253,21 +253,28 @@ export class HomePage {
   }
 
   async toggleBiometric(event: Event): Promise<void> {
-    const enabled = (event.target as HTMLInputElement).checked;
+    const input = event.target as HTMLInputElement;
+    const enabled = input.checked;
     this.securityError.set(null);
 
     if (enabled) {
       const authenticated = await this.nativeSecurity.authenticate().catch(() => false);
       if (!authenticated) {
+        input.checked = false;
         this.biometricEnabled.set(false);
         this.securityError.set('No se pudo activar la biometría.');
         return;
       }
     }
 
-    await this.nativeSecurity.setBiometricEnabled(enabled);
-    this.biometricEnabled.set(enabled);
-    this.lockedForUid = enabled ? this.user()?.uid ?? null : null;
+    try {
+      await this.nativeSecurity.setBiometricEnabled(enabled);
+      this.biometricEnabled.set(enabled);
+      this.lockedForUid = enabled ? this.user()?.uid ?? null : null;
+    } catch {
+      input.checked = this.biometricEnabled();
+      this.securityError.set('No se pudo guardar la configuración biométrica.');
+    }
   }
 
   async toggleWidgetAmounts(event: Event): Promise<void> {

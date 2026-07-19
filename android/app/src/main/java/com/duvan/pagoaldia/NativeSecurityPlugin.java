@@ -16,6 +16,7 @@ import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 
 import java.util.concurrent.Executor;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @CapacitorPlugin(name = "NativeSecurity")
 public class NativeSecurityPlugin extends Plugin {
@@ -35,34 +36,55 @@ public class NativeSecurityPlugin extends Plugin {
 
     @PluginMethod
     public void authenticate(PluginCall call) {
+        if (!(getActivity() instanceof FragmentActivity)) {
+            call.reject("La actividad no soporta autenticación biométrica.");
+            return;
+        }
+
         FragmentActivity activity = (FragmentActivity) getActivity();
-        Executor executor = ContextCompat.getMainExecutor(activity);
-        BiometricPrompt prompt = new BiometricPrompt(activity, executor, new BiometricPrompt.AuthenticationCallback() {
-            @Override
-            public void onAuthenticationSucceeded(@NonNull BiometricPrompt.AuthenticationResult result) {
-                JSObject response = new JSObject();
-                response.put("authenticated", true);
-                call.resolve(response);
-            }
+        int availability = BiometricManager.from(getContext()).canAuthenticate(AUTHENTICATORS);
+        if (availability != BiometricManager.BIOMETRIC_SUCCESS) {
+            call.reject(reasonFor(availability));
+            return;
+        }
 
-            @Override
-            public void onAuthenticationError(int errorCode, @NonNull CharSequence errString) {
-                call.reject(errString.toString());
-            }
+        activity.runOnUiThread(() -> {
+            try {
+                Executor executor = ContextCompat.getMainExecutor(activity);
+                AtomicBoolean completed = new AtomicBoolean(false);
+                BiometricPrompt prompt = new BiometricPrompt(activity, executor, new BiometricPrompt.AuthenticationCallback() {
+                    @Override
+                    public void onAuthenticationSucceeded(@NonNull BiometricPrompt.AuthenticationResult result) {
+                        if (!completed.compareAndSet(false, true)) return;
 
-            @Override
-            public void onAuthenticationFailed() {
-                // Android keeps the prompt open so the user can retry.
+                        JSObject response = new JSObject();
+                        response.put("authenticated", true);
+                        call.resolve(response);
+                    }
+
+                    @Override
+                    public void onAuthenticationError(int errorCode, @NonNull CharSequence errString) {
+                        if (!completed.compareAndSet(false, true)) return;
+                        call.reject(errString.toString());
+                    }
+
+                    @Override
+                    public void onAuthenticationFailed() {
+                        // Android keeps the prompt open so the user can retry.
+                    }
+                });
+
+                BiometricPrompt.PromptInfo promptInfo = new BiometricPrompt.PromptInfo.Builder()
+                    .setTitle("Desbloquear Pago al Día")
+                    .setSubtitle("Confirma tu identidad para continuar")
+                    .setAllowedAuthenticators(AUTHENTICATORS)
+                    .build();
+
+                prompt.authenticate(promptInfo);
+            } catch (Exception exception) {
+                call.reject("No se pudo iniciar la autenticación biométrica.", exception);
             }
         });
-
-        BiometricPrompt.PromptInfo promptInfo = new BiometricPrompt.PromptInfo.Builder()
-            .setTitle("Desbloquear Pago al Día")
-            .setSubtitle("Confirma tu identidad para continuar")
-            .setAllowedAuthenticators(AUTHENTICATORS)
-            .build();
-
-        prompt.authenticate(promptInfo);
     }
 
     @PluginMethod
